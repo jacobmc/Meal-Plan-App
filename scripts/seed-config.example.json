@@ -1,0 +1,15 @@
+{
+  "family": {
+    "name": "The McKinney Family",
+    "timezone": "America/New_York",
+    "weekStartsOn": 0
+  },
+  "users": [
+    { "clerkUserId": "user_xxxxxxxxxxxxxxxxxxxxxx", "email": "jacob@example.com", "displayName": "Jacob" }
+  ],
+  "profiles": [
+    { "displayName": "Jacob", "color": "#3b82f6", "linkUserClerkId": "user_xxxxxxxxxxxxxxxxxxxxxx" },
+    { "displayName": "Spouse", "color": "#a855f7" },
+    { "displayName": "Kid 1", "color": "#22c55e" }
+  ]
+}
