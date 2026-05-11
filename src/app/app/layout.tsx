@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
+import { InstallPrompt } from "@/components/install-prompt";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
@@ -17,6 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </nav>
       </header>
       <main className="px-4 py-6">{children}</main>
+      <InstallPrompt />
     </div>
   );
 }

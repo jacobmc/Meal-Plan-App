@@ -2306,7 +2306,9 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  experimental: { typedRoutes: true },
+  // NOTE: `typedRoutes` (stable in Next 16, no longer under `experimental`) is
+  // intentionally omitted — Clerk's catch-all sign-in/sign-up routes make bare
+  // `"/sign-in"` / `"/sign-up"` strings fail the typed-route check.
 };
 
 export default withPWA(nextConfig);
@@ -2542,7 +2544,8 @@ const withPWA = withPWAInit({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  experimental: { typedRoutes: true },
+  // See Task 18 note: `typedRoutes` is omitted while Clerk's catch-all auth
+  // routes prevent bare `"/sign-in"` strings from typechecking.
 };
 
 export default withSentryConfig(withPWA(nextConfig), {

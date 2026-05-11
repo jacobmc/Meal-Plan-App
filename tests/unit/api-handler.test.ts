@@ -10,17 +10,19 @@ function makeRequest() {
   return new Request("http://localhost/test");
 }
 
+const ctx = { params: Promise.resolve({}) };
+
 describe("apiHandler", () => {
   it("returns the handler's resolved value as 200 JSON", async () => {
     const handler = apiHandler(async () => ({ hello: "world" }));
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), ctx);
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ hello: "world" });
   });
 
   it("returns 204 when handler resolves to undefined", async () => {
     const handler = apiHandler(async () => undefined);
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), ctx);
     expect(res.status).toBe(204);
   });
 
@@ -28,7 +30,7 @@ describe("apiHandler", () => {
     const handler = apiHandler(async () => {
       throw new UnauthorizedError();
     });
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), ctx);
     expect(res.status).toBe(401);
     const body = await res.json();
     expect(body).toEqual({
@@ -40,7 +42,7 @@ describe("apiHandler", () => {
     const handler = apiHandler(async () => {
       throw new NotFoundError("Profile not found");
     });
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), ctx);
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({
       error: { code: "not_found", message: "Profile not found" },
@@ -51,7 +53,7 @@ describe("apiHandler", () => {
     const handler = apiHandler(async () => {
       throw new ValidationError("Bad input", { field: "name" });
     });
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), ctx);
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({
       error: {
@@ -66,7 +68,7 @@ describe("apiHandler", () => {
     const handler = apiHandler(async () => {
       throw new Error("kaboom");
     });
-    const res = await handler(makeRequest());
+    const res = await handler(makeRequest(), ctx);
     expect(res.status).toBe(500);
     expect(await res.json()).toEqual({
       error: { code: "internal", message: "Internal server error" },
