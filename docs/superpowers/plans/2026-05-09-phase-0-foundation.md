@@ -2720,12 +2720,14 @@ test.describe("foundation smoke", () => {
     expect(json.start_url).toBe("/app");
   });
 
-  test.skip(
-    !E2E_USER_EMAIL || !E2E_USER_PASSWORD,
-    "Authenticated flow requires E2E_USER_EMAIL + E2E_USER_PASSWORD",
-  );
-
   test("authenticated user can view profiles page", async ({ page }) => {
+    // NOTE: test.skip(...) must live inside this test body. When placed at the
+    // describe-block top level it skips ALL tests in the describe, not just
+    // the one that needs credentials.
+    test.skip(
+      !E2E_USER_EMAIL || !E2E_USER_PASSWORD,
+      "Authenticated flow requires E2E_USER_EMAIL + E2E_USER_PASSWORD",
+    );
     await page.goto("/sign-in");
     await page.getByLabel(/email/i).fill(E2E_USER_EMAIL!);
     await page.getByRole("button", { name: /continue/i }).click();

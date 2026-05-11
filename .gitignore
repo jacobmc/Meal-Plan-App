@@ -50,3 +50,8 @@ public/sw.js
 public/sw.js.map
 public/workbox-*.js
 public/workbox-*.js.map
+
+# playwright artifacts
+/test-results/
+/playwright-report/
+/playwright/.cache/
