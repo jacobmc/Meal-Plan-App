@@ -707,7 +707,8 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: mealplan
     ports:
-      - "5432:5432"
+      # Host port 5433 to avoid clashing with another local postgres (see .env.local).
+      - "5433:5432"
     volumes:
       - mealplan_pgdata:/var/lib/postgresql/data
 
