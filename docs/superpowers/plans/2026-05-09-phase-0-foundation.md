@@ -44,7 +44,7 @@
 │   │   ├── page.tsx                    # landing → redirects to /app if signed in
 │   │   ├── sign-in/[[...sign-in]]/page.tsx
 │   │   ├── sign-up/[[...sign-up]]/page.tsx
-│   │   ├── (app)/
+│   │   ├── app/                        # /app URL prefix (not a route group)
 │   │   │   ├── layout.tsx              # protected layout, requires auth
 │   │   │   ├── page.tsx                # dashboard placeholder
 │   │   │   └── settings/profiles/page.tsx
@@ -587,7 +587,7 @@ git commit -m "feat: integrate clerk auth with sign-in and sign-up routes"
 
 **Files:**
 - Modify: `src/app/page.tsx`
-- Create: `src/app/(app)/layout.tsx`, `src/app/(app)/page.tsx`
+- Create: `src/app/app/layout.tsx`, `src/app/app/page.tsx`
 
 - [ ] **Step 1: Replace landing page with a redirect-aware variant**
 
@@ -622,7 +622,7 @@ export default async function LandingPage() {
 
 - [ ] **Step 2: Add a protected layout**
 
-Create `src/app/(app)/layout.tsx`:
+Create `src/app/app/layout.tsx`:
 
 ```tsx
 import { auth } from "@clerk/nextjs/server";
@@ -651,7 +651,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
 - [ ] **Step 3: Add a dashboard placeholder**
 
-Create `src/app/(app)/page.tsx`:
+Create `src/app/app/page.tsx`:
 
 ```tsx
 export default function DashboardPage() {
@@ -1984,7 +1984,7 @@ git commit -m "feat(api): add profiles CRUD with validation and tenant scoping"
 ## Task 17: Build the profiles management UI
 
 **Files:**
-- Create: `src/lib/http/fetcher.ts`, `src/components/profile-list.tsx`, `src/components/profile-form.tsx`, `src/app/(app)/settings/profiles/page.tsx`
+- Create: `src/lib/http/fetcher.ts`, `src/components/profile-list.tsx`, `src/components/profile-form.tsx`, `src/app/app/settings/profiles/page.tsx`
 
 - [ ] **Step 1: Write a thin client fetcher**
 
@@ -2212,7 +2212,7 @@ export function ProfileList({ initialItems }: { initialItems: ProfileItem[] }) {
 
 - [ ] **Step 4: Build the page (server component fetching initial data)**
 
-Create `src/app/(app)/settings/profiles/page.tsx`:
+Create `src/app/app/settings/profiles/page.tsx`:
 
 ```tsx
 import { eq, asc } from "drizzle-orm";
@@ -2440,7 +2440,7 @@ export function InstallPrompt() {
 }
 ```
 
-Mount it in the protected layout. Replace the contents of `src/app/(app)/layout.tsx` with:
+Mount it in the protected layout. Replace the contents of `src/app/app/layout.tsx` with:
 
 ```tsx
 import { auth } from "@clerk/nextjs/server";
