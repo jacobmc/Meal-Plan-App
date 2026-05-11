@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --webpack",
+    "vercel-build": "drizzle-kit migrate && next build --webpack",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
