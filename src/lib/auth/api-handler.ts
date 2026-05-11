@@ -2,7 +2,9 @@ import { ApiError } from "./errors";
 
 type Handler<Ctx> = (req: Request, ctx: Ctx) => Promise<unknown> | unknown;
 
-export function apiHandler<Ctx = undefined>(handler: Handler<Ctx>) {
+type DefaultRouteCtx = { params: Promise<Record<string, string | string[]>> };
+
+export function apiHandler<Ctx = DefaultRouteCtx>(handler: Handler<Ctx>) {
   return async (req: Request, ctx?: Ctx): Promise<Response> => {
     try {
       const result = await handler(req, ctx as Ctx);

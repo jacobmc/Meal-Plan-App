@@ -15,13 +15,15 @@ const clientSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
 });
 
+const blank = (v: string | undefined) => (v === "" ? undefined : v);
+
 const processEnv = {
   DATABASE_URL: process.env.DATABASE_URL,
   CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
-  CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
-  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-  BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
-  SENTRY_DSN: process.env.SENTRY_DSN,
+  CLERK_WEBHOOK_SECRET: blank(process.env.CLERK_WEBHOOK_SECRET),
+  ANTHROPIC_API_KEY: blank(process.env.ANTHROPIC_API_KEY),
+  BLOB_READ_WRITE_TOKEN: blank(process.env.BLOB_READ_WRITE_TOKEN),
+  SENTRY_DSN: blank(process.env.SENTRY_DSN),
   NODE_ENV: process.env.NODE_ENV,
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
