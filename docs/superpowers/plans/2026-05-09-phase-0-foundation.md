@@ -928,7 +928,7 @@ Expected: migrations run successfully against the local `mealplan` database.
 - [ ] **Step 4: Apply the migration to the test database**
 
 ```bash
-DATABASE_URL="postgres://postgres:postgres@localhost:5432/mealplan_test" pnpm db:migrate
+DATABASE_URL="postgres://postgres:postgres@localhost:5433/mealplan_test" pnpm db:migrate
 ```
 
 Expected: same migrations run against `mealplan_test`.
