@@ -58,3 +58,6 @@ public/workbox-*.js.map
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# brainstorming visual companion
+.superpowers/
