@@ -11,9 +11,10 @@ import {
   ingredients,
   mealIngredients,
 } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { GET, POST } from "@/app/api/meals/route";
 import { GET as TagsGET } from "@/app/api/meals/tags/route";
-import { GET as DetailGET } from "@/app/api/meals/[id]/route";
+import { GET as DetailGET, PATCH, DELETE } from "@/app/api/meals/[id]/route";
 
 async function seedFamily(clerkId = "user_test") {
   const [family] = await db.insert(families).values({ name: "Fam" }).returning();
@@ -211,6 +212,70 @@ describe("GET /api/meals/[id]", () => {
     const b = await seedFamily("user_b");
     setMockClerkUser("user_b");
     const res = await DetailGET(new Request("http://localhost"), detailCtx(m!.id));
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/meals/[id]", () => {
+  it("replaces tags and ingredient rows", async () => {
+    const { family } = await seedFamily();
+    const [m] = await db
+      .insert(meals)
+      .values({ familyId: family.id, name: "Tacos", tags: ["old"] })
+      .returning();
+    await db.insert(mealIngredients).values({
+      mealId: m!.id,
+      displayText: "old item",
+      sortOrder: 0,
+    });
+    const res = await PATCH(
+      new Request("http://localhost", {
+        method: "PATCH",
+        body: JSON.stringify({
+          tags: ["mexican"],
+          ingredients: [{ displayText: "new item", sortOrder: 0 }],
+        }),
+      }),
+      detailCtx(m!.id),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.tags).toEqual(["mexican"]);
+    expect(body.ingredients).toHaveLength(1);
+    expect(body.ingredients[0].displayText).toBe("new item");
+  });
+  it("returns 404 across families", async () => {
+    const a = await seedFamily("user_a");
+    const [m] = await db.insert(meals).values({ familyId: a.family.id, name: "X" }).returning();
+    const b = await seedFamily("user_b");
+    setMockClerkUser("user_b");
+    const res = await PATCH(
+      new Request("http://localhost", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "Y" }),
+      }),
+      detailCtx(m!.id),
+    );
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("DELETE /api/meals/[id]", () => {
+  it("deletes the meal and its ingredient rows (cascade)", async () => {
+    const { family } = await seedFamily();
+    const [m] = await db.insert(meals).values({ familyId: family.id, name: "X" }).returning();
+    await db.insert(mealIngredients).values({ mealId: m!.id, displayText: "x", sortOrder: 0 });
+    const res = await DELETE(new Request("http://localhost"), detailCtx(m!.id));
+    expect(res.status).toBe(204);
+    const rows = await db.select().from(mealIngredients).where(eq(mealIngredients.mealId, m!.id));
+    expect(rows).toEqual([]);
+  });
+  it("returns 404 across families", async () => {
+    const a = await seedFamily("user_a");
+    const [m] = await db.insert(meals).values({ familyId: a.family.id, name: "X" }).returning();
+    const b = await seedFamily("user_b");
+    setMockClerkUser("user_b");
+    const res = await DELETE(new Request("http://localhost"), detailCtx(m!.id));
     expect(res.status).toBe(404);
   });
 });
