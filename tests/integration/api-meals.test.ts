@@ -11,7 +11,7 @@ import {
   ingredients,
   mealIngredients,
 } from "@/lib/db/schema";
-import { GET } from "@/app/api/meals/route";
+import { GET, POST } from "@/app/api/meals/route";
 import { GET as TagsGET } from "@/app/api/meals/tags/route";
 
 async function seedFamily(clerkId = "user_test") {
@@ -112,5 +112,63 @@ describe("GET /api/meals/tags", () => {
     const res = await TagsGET(new Request("http://localhost/api/meals/tags"), ctx);
     const body = await res.json();
     expect(body.items).toEqual([]);
+  });
+});
+
+describe("POST /api/meals", () => {
+  it("creates a meal with mixed structured + free-text ingredients", async () => {
+    const { family } = await seedFamily();
+    const [ing] = await db
+      .insert(ingredients)
+      .values({ familyId: family.id, name: "Beef", category: "meat" })
+      .returning();
+    const body = {
+      name: "Tacos",
+      instructions: "## Steps\n1. Cook",
+      tags: ["mexican", "quick"],
+      ingredients: [
+        { ingredientId: ing!.id, quantity: 1, unit: "lb", sortOrder: 0 },
+        { displayText: "a pinch of salt", sortOrder: 1 },
+      ],
+    };
+    const res = await POST(
+      new Request("http://localhost/api/meals", { method: "POST", body: JSON.stringify(body) }),
+      ctx,
+    );
+    expect(res.status).toBe(200);
+    const meal = await res.json();
+    expect(meal.name).toBe("Tacos");
+    expect(meal.tags.sort()).toEqual(["mexican", "quick"]);
+    expect(meal.ingredients).toHaveLength(2);
+    const structured = meal.ingredients.find((i: { ingredientId: string | null }) => i.ingredientId);
+    expect(structured.ingredientName).toBe("Beef");
+    expect(structured.quantity).toBe("1.000"); // numeric -> string
+    const freeText = meal.ingredients.find(
+      (i: { displayText: string | null }) => i.displayText,
+    );
+    expect(freeText.displayText).toBe("a pinch of salt");
+  });
+  it("rejects 422 when neither ingredientId nor displayText is set", async () => {
+    await seedFamily();
+    const res = await POST(
+      new Request("http://localhost/api/meals", {
+        method: "POST",
+        body: JSON.stringify({ name: "X", ingredients: [{ sortOrder: 0 }] }),
+      }),
+      ctx,
+    );
+    expect(res.status).toBe(400);
+  });
+  it("normalizes tags on save (case + trim + dedupe)", async () => {
+    await seedFamily();
+    const res = await POST(
+      new Request("http://localhost/api/meals", {
+        method: "POST",
+        body: JSON.stringify({ name: "X", tags: [" Quick ", "QUICK", "Dessert"] }),
+      }),
+      ctx,
+    );
+    const body = await res.json();
+    expect(body.tags.sort()).toEqual(["dessert", "quick"]);
   });
 });

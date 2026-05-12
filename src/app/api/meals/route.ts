@@ -1,8 +1,10 @@
-import { and, arrayContains, asc, eq, ilike, sql } from "drizzle-orm";
+import { and, arrayContains, asc, eq, ilike, inArray, sql } from "drizzle-orm";
 import { apiHandler } from "@/lib/auth/api-handler";
+import { ValidationError } from "@/lib/auth/errors";
 import { withFamily } from "@/lib/auth/with-family";
 import { db } from "@/lib/db/client";
-import { meals } from "@/lib/db/schema";
+import { meals, mealIngredients, ingredients } from "@/lib/db/schema";
+import { MealCreateSchema } from "@/lib/validation/meal";
 
 export const GET = apiHandler(async (req) => {
   const { familyId } = await withFamily();
@@ -31,4 +33,100 @@ export const GET = apiHandler(async (req) => {
     .orderBy(asc(sql`lower(${meals.name})`));
 
   return { items };
+});
+
+async function fetchMealDetail(mealId: string, familyId: string) {
+  const [meal] = await db
+    .select()
+    .from(meals)
+    .where(and(eq(meals.id, mealId), eq(meals.familyId, familyId)))
+    .limit(1);
+  if (!meal) return null;
+
+  const ingRows = await db
+    .select({
+      id: mealIngredients.id,
+      ingredientId: mealIngredients.ingredientId,
+      displayText: mealIngredients.displayText,
+      quantity: mealIngredients.quantity,
+      unit: mealIngredients.unit,
+      sortOrder: mealIngredients.sortOrder,
+      ingredientName: ingredients.name,
+    })
+    .from(mealIngredients)
+    .leftJoin(ingredients, eq(mealIngredients.ingredientId, ingredients.id))
+    .where(eq(mealIngredients.mealId, mealId))
+    .orderBy(asc(mealIngredients.sortOrder));
+
+  return {
+    id: meal.id,
+    name: meal.name,
+    description: meal.description,
+    instructions: meal.instructions,
+    prepTimeMinutes: meal.prepTimeMinutes,
+    cookTimeMinutes: meal.cookTimeMinutes,
+    servings: meal.servings,
+    sourceUrl: meal.sourceUrl,
+    tags: meal.tags,
+    updatedAt: meal.updatedAt,
+    ingredients: ingRows,
+  };
+}
+
+export const POST = apiHandler(async (req) => {
+  const { familyId, userId } = await withFamily();
+  const json = await req.json();
+  const parsed = MealCreateSchema.safeParse(json);
+  if (!parsed.success) {
+    throw new ValidationError("Invalid meal payload", parsed.error.flatten());
+  }
+
+  // Validate that any referenced ingredientIds belong to this family
+  const ingredientIds = parsed.data.ingredients
+    .map((r) => r.ingredientId)
+    .filter((v): v is string => Boolean(v));
+  if (ingredientIds.length > 0) {
+    const owned = await db
+      .select({ id: ingredients.id })
+      .from(ingredients)
+      .where(and(eq(ingredients.familyId, familyId), inArray(ingredients.id, ingredientIds)));
+    if (owned.length !== new Set(ingredientIds).size) {
+      throw new ValidationError("One or more ingredient IDs are invalid");
+    }
+  }
+
+  const newMeal = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(meals)
+      .values({
+        familyId,
+        name: parsed.data.name,
+        description: parsed.data.description ?? null,
+        instructions: parsed.data.instructions ?? null,
+        prepTimeMinutes: parsed.data.prepTimeMinutes ?? null,
+        cookTimeMinutes: parsed.data.cookTimeMinutes ?? null,
+        servings: parsed.data.servings ?? null,
+        sourceUrl: parsed.data.sourceUrl ?? null,
+        tags: parsed.data.tags,
+        createdByUserId: userId,
+        updatedByUserId: userId,
+      })
+      .returning();
+
+    if (parsed.data.ingredients.length > 0) {
+      await tx.insert(mealIngredients).values(
+        parsed.data.ingredients.map((r) => ({
+          mealId: created!.id,
+          ingredientId: r.ingredientId ?? null,
+          displayText: r.displayText ?? null,
+          quantity: r.quantity != null ? String(r.quantity) : null,
+          unit: r.unit ?? null,
+          sortOrder: r.sortOrder,
+        })),
+      );
+    }
+    return created!;
+  });
+
+  return await fetchMealDetail(newMeal.id, familyId);
 });
