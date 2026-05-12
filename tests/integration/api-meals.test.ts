@@ -12,6 +12,7 @@ import {
   mealIngredients,
 } from "@/lib/db/schema";
 import { GET } from "@/app/api/meals/route";
+import { GET as TagsGET } from "@/app/api/meals/tags/route";
 
 async function seedFamily(clerkId = "user_test") {
   const [family] = await db.insert(families).values({ name: "Fam" }).returning();
@@ -87,6 +88,28 @@ describe("GET /api/meals", () => {
     const b = await seedFamily("user_b");
     setMockClerkUser("user_b");
     const res = await GET(new Request("http://localhost/api/meals"), ctx);
+    const body = await res.json();
+    expect(body.items).toEqual([]);
+  });
+});
+
+describe("GET /api/meals/tags", () => {
+  it("returns deduplicated lowercase tags for the family", async () => {
+    const { family } = await seedFamily();
+    await db.insert(meals).values([
+      { familyId: family.id, name: "A", tags: ["mexican", "quick"] },
+      { familyId: family.id, name: "B", tags: ["dessert", "quick"] },
+    ]);
+    const res = await TagsGET(new Request("http://localhost/api/meals/tags"), ctx);
+    const body = await res.json();
+    expect(body.items.sort()).toEqual(["dessert", "mexican", "quick"]);
+  });
+  it("does not leak tags across families", async () => {
+    const a = await seedFamily("user_a");
+    await db.insert(meals).values({ familyId: a.family.id, name: "X", tags: ["fam-a"] });
+    const b = await seedFamily("user_b");
+    setMockClerkUser("user_b");
+    const res = await TagsGET(new Request("http://localhost/api/meals/tags"), ctx);
     const body = await res.json();
     expect(body.items).toEqual([]);
   });
