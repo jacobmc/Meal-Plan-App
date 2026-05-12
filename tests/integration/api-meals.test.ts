@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/schema";
 import { GET, POST } from "@/app/api/meals/route";
 import { GET as TagsGET } from "@/app/api/meals/tags/route";
+import { GET as DetailGET } from "@/app/api/meals/[id]/route";
 
 async function seedFamily(clerkId = "user_test") {
   const [family] = await db.insert(families).values({ name: "Fam" }).returning();
@@ -170,5 +171,46 @@ describe("POST /api/meals", () => {
     );
     const body = await res.json();
     expect(body.tags.sort()).toEqual(["dessert", "quick"]);
+  });
+});
+
+function detailCtx(id: string) {
+  return { params: Promise.resolve({ id }) };
+}
+
+describe("GET /api/meals/[id]", () => {
+  it("returns the meal with ingredient names joined", async () => {
+    const { family } = await seedFamily();
+    const [ing] = await db
+      .insert(ingredients)
+      .values({ familyId: family.id, name: "Beef", category: "meat" })
+      .returning();
+    const [m] = await db
+      .insert(meals)
+      .values({ familyId: family.id, name: "Tacos" })
+      .returning();
+    await db.insert(mealIngredients).values({
+      mealId: m!.id,
+      ingredientId: ing!.id,
+      quantity: "1.500",
+      unit: "lb",
+      sortOrder: 0,
+    });
+    const res = await DetailGET(new Request("http://localhost"), detailCtx(m!.id));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.name).toBe("Tacos");
+    expect(body.ingredients[0].ingredientName).toBe("Beef");
+  });
+  it("returns 404 for a meal in another family", async () => {
+    const a = await seedFamily("user_a");
+    const [m] = await db
+      .insert(meals)
+      .values({ familyId: a.family.id, name: "Cross" })
+      .returning();
+    const b = await seedFamily("user_b");
+    setMockClerkUser("user_b");
+    const res = await DetailGET(new Request("http://localhost"), detailCtx(m!.id));
+    expect(res.status).toBe(404);
   });
 });
