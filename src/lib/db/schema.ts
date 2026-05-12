@@ -8,6 +8,9 @@ import {
   primaryKey,
   uniqueIndex,
   index,
+  integer,
+  numeric,
+  check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
@@ -83,5 +86,93 @@ export type FamilyUser = typeof familyUsers.$inferSelect;
 export type NewFamilyUser = typeof familyUsers.$inferInsert;
 export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;
+
+export const meals = pgTable(
+  "meals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    instructions: text("instructions"),
+    prepTimeMinutes: integer("prep_time_minutes"),
+    cookTimeMinutes: integer("cook_time_minutes"),
+    servings: integer("servings"),
+    sourceUrl: text("source_url"),
+    imageUrl: text("image_url"),
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    isArchived: boolean("is_archived").notNull().default(false),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    familyNameIdx: index("meals_family_name_idx").on(table.familyId, sql`lower(${table.name})`),
+    familyActiveIdx: index("meals_family_active_idx")
+      .on(table.familyId)
+      .where(sql`not ${table.isArchived}`),
+    tagsGinIdx: index("meals_tags_gin_idx").using("gin", table.tags),
+  }),
+);
+
+export const ingredients = pgTable(
+  "ingredients",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    defaultUnit: text("default_unit"),
+    category: text("category").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    nameUniq: uniqueIndex("ingredients_family_name_uniq").on(
+      table.familyId,
+      sql`lower(${table.name})`,
+    ),
+    categoryIdx: index("ingredients_family_category_idx").on(table.familyId, table.category),
+    categoryCheck: check(
+      "ingredients_category_check",
+      sql`${table.category} in ('produce','meat','dairy','pantry','frozen','bakery','other')`,
+    ),
+  }),
+);
+
+export const mealIngredients = pgTable(
+  "meal_ingredients",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mealId: uuid("meal_id")
+      .notNull()
+      .references(() => meals.id, { onDelete: "cascade" }),
+    ingredientId: uuid("ingredient_id").references(() => ingredients.id, {
+      onDelete: "restrict",
+    }),
+    displayText: text("display_text"),
+    quantity: numeric("quantity", { precision: 10, scale: 3 }),
+    unit: text("unit"),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => ({
+    mealIdx: index("meal_ingredients_meal_idx").on(table.mealId),
+    hybridCheck: check(
+      "meal_ingredients_hybrid_check",
+      sql`${table.ingredientId} is not null or ${table.displayText} is not null`,
+    ),
+  }),
+);
+
+export type Meal = typeof meals.$inferSelect;
+export type NewMeal = typeof meals.$inferInsert;
+export type Ingredient = typeof ingredients.$inferSelect;
+export type NewIngredient = typeof ingredients.$inferInsert;
+export type MealIngredient = typeof mealIngredients.$inferSelect;
+export type NewMealIngredient = typeof mealIngredients.$inferInsert;
 
 void sql;
