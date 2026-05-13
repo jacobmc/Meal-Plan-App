@@ -18,8 +18,11 @@ export async function POST(req: Request, _ctx: RouteCtx): Promise<Response> {
   try {
     if (evt.type === "user.created") {
       await handleUserCreated(evt.data);
+    } else if (evt.type === "user.updated") {
+      await handleUserUpdated(evt.data);
+    } else if (evt.type === "user.deleted") {
+      await handleUserDeleted(evt.data);
     }
-    // user.updated and user.deleted handlers added in Task 6
     return new Response(null, { status: 200 });
   } catch (err) {
     console.error("Clerk webhook handler error:", { eventType: evt.type, err });
@@ -75,4 +78,28 @@ async function handleUserCreated(data: {
       updatedByUserId: userId,
     });
   });
+}
+
+async function handleUserUpdated(data: {
+  id: string;
+  email_addresses: { email_address: string }[];
+  first_name: string | null;
+  last_name: string | null;
+}) {
+  const email = data.email_addresses[0]?.email_address ?? null;
+  const displayName = computeDisplayName(data.first_name, data.last_name, email);
+
+  const updated = await db
+    .update(users)
+    .set({ email, displayName, updatedAt: new Date() })
+    .where(eq(users.clerkUserId, data.id))
+    .returning({ id: users.id });
+
+  if (updated.length === 0) {
+    console.warn("Clerk webhook user.updated: no matching user row", { clerkUserId: data.id });
+  }
+}
+
+async function handleUserDeleted(data: { id: string }) {
+  await db.delete(users).where(eq(users.clerkUserId, data.id));
 }

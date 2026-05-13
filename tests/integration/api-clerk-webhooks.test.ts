@@ -90,3 +90,93 @@ describe("POST /api/clerk/webhooks — user.created", () => {
     expect(await db.select().from(familyUsers)).toHaveLength(1);
   });
 });
+
+function userUpdatedEvent(overrides: {
+  id: string;
+  email?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+}) {
+  return {
+    type: "user.updated" as const,
+    data: {
+      id: overrides.id,
+      email_addresses: [
+        { id: "idn_1", email_address: overrides.email ?? "ada@example.com" },
+      ],
+      first_name: overrides.firstName ?? null,
+      last_name: overrides.lastName ?? null,
+    },
+  } as unknown as import("@clerk/backend/webhooks").WebhookEvent;
+}
+
+function userDeletedEvent(id: string) {
+  return {
+    type: "user.deleted" as const,
+    data: { id, deleted: true },
+  } as unknown as import("@clerk/backend/webhooks").WebhookEvent;
+}
+
+describe("POST /api/clerk/webhooks — user.updated", () => {
+  it("updates email and displayName on the matching row", async () => {
+    const [u] = await db
+      .insert(users)
+      .values({ clerkUserId: "user_delta", email: "old@x.com", displayName: "Old Name" })
+      .returning();
+
+    setMockWebhookEvent(
+      userUpdatedEvent({ id: "user_delta", email: "new@x.com", firstName: "New", lastName: "Name" }),
+    );
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx);
+    expect(res.status).toBe(200);
+
+    const after = await db.query.users.findFirst({ where: eq(users.id, u!.id) });
+    expect(after!.email).toBe("new@x.com");
+    expect(after!.displayName).toBe("New Name");
+  });
+
+  it("returns 200 with no DB change when no matching row exists", async () => {
+    setMockWebhookEvent(userUpdatedEvent({ id: "user_does_not_exist", email: "x@x.com" }));
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx);
+    expect(res.status).toBe(200);
+    expect(await db.select().from(users)).toEqual([]);
+  });
+});
+
+describe("POST /api/clerk/webhooks — user.deleted", () => {
+  it("deletes the user row, cascades family_users, sets profile.user_id NULL, preserves family", async () => {
+    const [fam] = await db.insert(families).values({ name: "Keep" }).returning();
+    const [u] = await db
+      .insert(users)
+      .values({ clerkUserId: "user_eps", email: "e@x.com", displayName: "Eps" })
+      .returning();
+    await db.insert(familyUsers).values({ familyId: fam!.id, userId: u!.id });
+    await db.insert(profiles).values({
+      familyId: fam!.id,
+      displayName: "Eps",
+      color: "#94a3b8",
+      userId: u!.id,
+      createdByUserId: u!.id,
+      updatedByUserId: u!.id,
+    });
+
+    setMockWebhookEvent(userDeletedEvent("user_eps"));
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx);
+    expect(res.status).toBe(200);
+
+    expect(await db.select().from(users)).toEqual([]);
+    expect(await db.select().from(familyUsers)).toEqual([]);
+    const profs = await db.select().from(profiles);
+    expect(profs).toHaveLength(1);
+    expect(profs[0]!.userId).toBeNull();
+    expect(profs[0]!.createdByUserId).toBeNull();
+    expect(profs[0]!.updatedByUserId).toBeNull();
+    expect(await db.select().from(families)).toHaveLength(1);
+  });
+
+  it("is idempotent — second delivery on an already-deleted user returns 200 with no change", async () => {
+    setMockWebhookEvent(userDeletedEvent("user_ghost"));
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx);
+    expect(res.status).toBe(200);
+  });
+});
