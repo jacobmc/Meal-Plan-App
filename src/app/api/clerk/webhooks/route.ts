@@ -1,4 +1,5 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
+import { type NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { users, families, familyUsers, profiles } from "@/lib/db/schema";
@@ -6,7 +7,7 @@ import { computeDisplayName } from "@/lib/webhooks/display-name";
 
 type RouteCtx = { params: Promise<Record<string, string>> };
 
-export async function POST(req: Request, _ctx: RouteCtx): Promise<Response> {
+export async function POST(req: NextRequest, _ctx: RouteCtx): Promise<Response> {
   let evt;
   try {
     evt = await verifyWebhook(req);
@@ -100,6 +101,10 @@ async function handleUserUpdated(data: {
   }
 }
 
-async function handleUserDeleted(data: { id: string }) {
+async function handleUserDeleted(data: { id?: string }) {
+  if (!data.id) {
+    console.warn("Clerk webhook user.deleted: missing id, skipping");
+    return;
+  }
   await db.delete(users).where(eq(users.clerkUserId, data.id));
 }
