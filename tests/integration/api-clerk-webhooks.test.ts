@@ -180,3 +180,22 @@ describe("POST /api/clerk/webhooks — user.deleted", () => {
     expect(res.status).toBe(200);
   });
 });
+
+describe("POST /api/clerk/webhooks — security and routing", () => {
+  it("returns 400 when signature verification fails", async () => {
+    setMockWebhookError(new Error("bad signature"));
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx);
+    expect(res.status).toBe(400);
+    expect(await db.select().from(users)).toEqual([]);
+  });
+
+  it("returns 200 with no DB change for an unhandled event type", async () => {
+    setMockWebhookEvent({
+      type: "session.created",
+      data: { id: "sess_zzz" },
+    } as unknown as import("@clerk/backend/webhooks").WebhookEvent);
+    const res = await POST(new Request("http://localhost", { method: "POST" }), ctx);
+    expect(res.status).toBe(200);
+    expect(await db.select().from(users)).toEqual([]);
+  });
+});
