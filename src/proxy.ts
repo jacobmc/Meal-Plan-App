@@ -8,6 +8,10 @@ const isPublicRoute = createRouteMatcher([
   // `tunnelRoute` in next.config.ts). Must bypass auth or client errors never
   // reach Sentry in production.
   "/monitoring(.*)",
+  // Clerk delivers webhooks server-to-server; no Clerk session is present.
+  // Authentication of the request is handled inside the route via Svix
+  // signature verification.
+  "/api/clerk/webhooks",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

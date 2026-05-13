@@ -15,6 +15,13 @@
       "when": 1778555770294,
       "tag": "0001_loving_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778640657134,
+      "tag": "0002_bumpy_karen_page",
+      "breakpoints": true
     }
   ]
 }
