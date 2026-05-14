@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
-import { families, profiles } from "@/lib/db/schema";
+import { families, meals, profiles } from "@/lib/db/schema";
 import { withFamily } from "@/lib/auth/with-family";
 import { resolveWeek } from "@/lib/schedule/resolve";
 import { parseISODate, weekStartFor, formatISODate } from "@/lib/schedule/week";
@@ -8,6 +8,8 @@ import { WeekNav } from "@/components/calendar/week-nav";
 import { ProfileToggle } from "@/components/calendar/profile-toggle";
 import { WeekView } from "@/components/calendar/week-view";
 import { CopyWeekButton } from "@/components/calendar/copy-week-button";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 
 type Search = { week?: string; profile?: string };
 
@@ -21,6 +23,30 @@ export default async function CalendarPage({
 
   const [family] = await db.select().from(families).where(eq(families.id, familyId));
   const weekStartsOn = family?.weekStartsOn ?? 0;
+
+  const [mealCountResult] = await db
+    .select({ value: count() })
+    .from(meals)
+    .where(and(eq(meals.familyId, familyId), eq(meals.isArchived, false)));
+
+  const mealCount = mealCountResult?.value ?? 0;
+
+  if (mealCount === 0) {
+    return (
+      <div className="mx-auto max-w-md py-12 text-center">
+        <h1 className="text-xl font-semibold">No recipes yet</h1>
+        <p className="text-muted-foreground mt-2 text-sm">
+          Build a recipe before you can start planning.
+        </p>
+        <Link
+          href="/app/meals/new"
+          className={buttonVariants({ variant: "default", size: "default" }) + " mt-4 inline-block"}
+        >
+          Create your first recipe →
+        </Link>
+      </div>
+    );
+  }
 
   const anyDay = sp.week ? parseISODate(sp.week) : new Date();
   const weekStart = weekStartFor(anyDay, weekStartsOn);
