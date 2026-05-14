@@ -14,10 +14,18 @@ const ScheduleEntryBase = z.object({
   notes: z.string().min(1).max(500).optional().nullable(),
 });
 
+type ScheduleEntryShape = {
+  mealId?: string | null;
+  eatingOut?: boolean;
+  eatingOutCost?: number | null;
+  eatingOutLabel?: string | null;
+};
+
 function refineMealXorEatout<T extends z.ZodTypeAny>(s: T): T {
-  return s.superRefine((val, ctx) => {
-    const mealSet = val.mealId != null;
-    const eatOut = val.eatingOut === true;
+  return s.superRefine((val: unknown, ctx) => {
+    const v = val as ScheduleEntryShape;
+    const mealSet = v.mealId != null;
+    const eatOut = v.eatingOut === true;
     if (mealSet && eatOut) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -25,7 +33,7 @@ function refineMealXorEatout<T extends z.ZodTypeAny>(s: T): T {
         path: ["eatingOut"],
       });
     }
-    if (!eatOut && (val.eatingOutCost != null || val.eatingOutLabel != null)) {
+    if (!eatOut && (v.eatingOutCost != null || v.eatingOutLabel != null)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: "eatingOutCost and eatingOutLabel require eatingOut=true",
