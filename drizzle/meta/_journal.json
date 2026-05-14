@@ -22,6 +22,13 @@
       "when": 1778640657134,
       "tag": "0002_bumpy_karen_page",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778735270271,
+      "tag": "0003_freezing_jane_foster",
+      "breakpoints": true
     }
   ]
 }
