@@ -1,5 +1,6 @@
 import {
   pgTable,
+  pgEnum,
   uuid,
   text,
   timestamp,
@@ -10,9 +11,12 @@ import {
   index,
   integer,
   numeric,
+  date,
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+
+export const mealSlot = pgEnum("meal_slot", ["breakfast", "lunch", "dinner", "snack"]);
 
 export const families = pgTable("families", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -174,5 +178,48 @@ export type Ingredient = typeof ingredients.$inferSelect;
 export type NewIngredient = typeof ingredients.$inferInsert;
 export type MealIngredient = typeof mealIngredients.$inferSelect;
 export type NewMealIngredient = typeof mealIngredients.$inferInsert;
+
+export const scheduleEntries = pgTable(
+  "schedule_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    slot: mealSlot("slot").notNull(),
+    profileId: uuid("profile_id").references(() => profiles.id, { onDelete: "cascade" }),
+    mealId: uuid("meal_id").references(() => meals.id, { onDelete: "set null" }),
+    eatingOut: boolean("eating_out").notNull().default(false),
+    eatingOutCost: numeric("eating_out_cost", { precision: 10, scale: 2 }),
+    eatingOutLabel: text("eating_out_label"),
+    notes: text("notes"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    defaultUniq: uniqueIndex("schedule_entries_default_uniq")
+      .on(table.familyId, table.date, table.slot)
+      .where(sql`${table.profileId} is null`),
+    overrideUniq: uniqueIndex("schedule_entries_override_uniq")
+      .on(table.familyId, table.date, table.slot, table.profileId)
+      .where(sql`${table.profileId} is not null`),
+    familyDateIdx: index("schedule_entries_family_date_idx").on(table.familyId, table.date),
+    mealXorEatout: check(
+      "schedule_entries_meal_xor_eatout",
+      sql`not (${table.mealId} is not null and ${table.eatingOut} = true)`,
+    ),
+    eatoutFieldsCheck: check(
+      "schedule_entries_eatout_fields_check",
+      sql`${table.eatingOut} = true or (${table.eatingOutCost} is null and ${table.eatingOutLabel} is null)`,
+    ),
+  }),
+);
+
+export type ScheduleEntry = typeof scheduleEntries.$inferSelect;
+export type NewScheduleEntry = typeof scheduleEntries.$inferInsert;
+export type MealSlot = (typeof mealSlot.enumValues)[number];
 
 void sql;

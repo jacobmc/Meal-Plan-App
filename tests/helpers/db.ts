@@ -1,5 +1,6 @@
 import { db } from "@/lib/db/client";
 import {
+  scheduleEntries,
   mealIngredients,
   meals,
   ingredients,
@@ -11,6 +12,7 @@ import {
 
 export async function resetDb() {
   // Order matters: cascade-aware deletion. Children first, then parents.
+  await db.delete(scheduleEntries);
   await db.delete(mealIngredients);
   await db.delete(meals);
   await db.delete(ingredients);

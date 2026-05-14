@@ -66,9 +66,14 @@ export function MealList({ initialItems, initialQuery, initialTags }: MealListPr
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">Recipes</h2>
-        <Link href="/app/meals/new" className={buttonVariants()}>
-          New recipe
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/app/calendar" className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Plan a week →
+          </Link>
+          <Link href="/app/meals/new" className={buttonVariants()}>
+            New recipe
+          </Link>
+        </div>
       </div>
 
       <Input
