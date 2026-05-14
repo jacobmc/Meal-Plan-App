@@ -6,7 +6,7 @@ import { db } from "@/lib/db/client";
 import { meals, scheduleEntries } from "@/lib/db/schema";
 import { ScheduleEntryUpdateSchema } from "@/lib/validation/schedule";
 import { resolveSlotState } from "@/lib/schedule/resolve-slot";
-import { serializeEntry } from "../route";
+import { serializeEntry } from "@/lib/schedule/serialize";
 
 type Ctx = { params: Promise<{ id: string }> };
 
