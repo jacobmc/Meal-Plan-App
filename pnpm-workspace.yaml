@@ -1,3 +1,9 @@
+allowBuilds:
+  '@clerk/shared': false
+  '@sentry/cli': false
+  esbuild: true
+  msw: false
+  sharp: false
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver

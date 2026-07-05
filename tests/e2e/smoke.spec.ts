@@ -133,4 +133,55 @@ test.describe("foundation smoke", () => {
     // Toast / page refresh; just confirm we're still on the calendar
     await expect(page.getByRole("heading", { name: "Calendar" })).toBeVisible();
   });
+
+  test("grocery: plan a week and shop it", async ({ page }) => {
+    test.skip(
+      !E2E_USER_EMAIL || !E2E_USER_PASSWORD,
+      "Grocery flow requires E2E_USER_EMAIL + E2E_USER_PASSWORD",
+    );
+    await page.goto("/sign-in");
+    await page.getByLabel(/email/i).fill(E2E_USER_EMAIL!);
+    await page.getByRole("button", { name: /continue/i }).click();
+    await page.getByLabel(/password/i).fill(E2E_USER_PASSWORD!);
+    await page.getByRole("button", { name: /continue|sign in/i }).click();
+    await page.waitForURL("**/app");
+
+    // Ensure this week has at least one planned meal so the list has derived items
+    await page.goto("/app/calendar");
+    await page.locator('button[aria-label="Edit dinner"]').first().click();
+    await page.getByPlaceholder("Search meals…").fill("");
+    await page.locator("ul li button").first().click();
+    await page.getByRole("button", { name: "Save" }).click();
+
+    // Create a list for this week
+    await page.goto("/app/grocery");
+    await page.getByRole("link", { name: "New list" }).click();
+    await page.getByRole("button", { name: "This week" }).click();
+    await page.getByRole("button", { name: "Create list" }).click();
+    await page.waitForURL(/\/app\/grocery\/[0-9a-f-]{36}$/);
+    await expect(page.getByText(/\d+\/\d+ checked/)).toBeVisible();
+
+    // Check off the first row; wait for the PATCH to land before reloading
+    const firstCheckbox = page.locator('input[type="checkbox"]').first();
+    await expect(firstCheckbox).toBeVisible();
+    await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().includes("/items/") && r.request().method() === "PATCH" && r.ok(),
+      ),
+      firstCheckbox.check(),
+    ]);
+    await page.reload();
+    await expect(page.locator('input[type="checkbox"]').first()).toBeChecked();
+
+    // Add a manual item (unique text — the seeded user's data persists across runs)
+    const manualItem = `paper towels ${Date.now()}`;
+    await page.getByPlaceholder("Add item…").fill(manualItem);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(page.getByText(manualItem)).toBeVisible();
+
+    // Regenerate: manual items and check-offs must survive
+    await page.getByRole("button", { name: "Refresh" }).click();
+    await page.getByRole("button", { name: "Confirm" }).click();
+    await expect(page.getByText(manualItem)).toBeVisible();
+  });
 });
