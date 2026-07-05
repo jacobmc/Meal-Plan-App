@@ -222,4 +222,87 @@ export type ScheduleEntry = typeof scheduleEntries.$inferSelect;
 export type NewScheduleEntry = typeof scheduleEntries.$inferInsert;
 export type MealSlot = (typeof mealSlot.enumValues)[number];
 
+export const groceryLists = pgTable(
+  "grocery_lists",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    familyId: uuid("family_id")
+      .notNull()
+      .references(() => families.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+    lastRegeneratedAt: timestamp("last_regenerated_at", { withTimezone: true }),
+    isArchived: boolean("is_archived").notNull().default(false),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    familyIdx: index("grocery_lists_family_idx").on(table.familyId),
+    familyActiveIdx: index("grocery_lists_family_active_idx")
+      .on(table.familyId)
+      .where(sql`not ${table.isArchived}`),
+    dateRangeCheck: check(
+      "grocery_lists_date_range_check",
+      sql`${table.endDate} >= ${table.startDate}`,
+    ),
+  }),
+);
+
+export const groceryListItems = pgTable(
+  "grocery_list_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    listId: uuid("list_id")
+      .notNull()
+      .references(() => groceryLists.id, { onDelete: "cascade" }),
+    ingredientId: uuid("ingredient_id").references(() => ingredients.id, { onDelete: "set null" }),
+    displayText: text("display_text"),
+    quantity: numeric("quantity", { precision: 10, scale: 3 }),
+    unit: text("unit"),
+    category: text("category").notNull(),
+    source: text("source").notNull(),
+    checked: boolean("checked").notNull().default(false),
+    checkedAt: timestamp("checked_at", { withTimezone: true }),
+    checkedByUserId: uuid("checked_by_user_id").references(() => users.id, { onDelete: "set null" }),
+    sourceScheduleEntryIds: uuid("source_schedule_entry_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    listIdx: index("grocery_list_items_list_idx").on(table.listId),
+    derivedUniq: uniqueIndex("grocery_list_items_derived_uniq")
+      .on(table.listId, table.ingredientId, sql`coalesce(${table.unit}, '')`)
+      .where(sql`${table.source} = 'derived' and ${table.ingredientId} is not null`),
+    sourceCheck: check(
+      "grocery_list_items_source_check",
+      sql`${table.source} in ('derived','manual')`,
+    ),
+    categoryCheck: check(
+      "grocery_list_items_category_check",
+      sql`${table.category} in ('produce','meat','dairy','pantry','frozen','bakery','other')`,
+    ),
+    displayOrIngredientCheck: check(
+      "grocery_list_items_display_or_ingredient",
+      sql`${table.ingredientId} is not null or ${table.displayText} is not null`,
+    ),
+    checkedAtConsistencyCheck: check(
+      "grocery_list_items_checked_at_consistency",
+      sql`(${table.checked} and ${table.checkedAt} is not null) or (not ${table.checked} and ${table.checkedAt} is null)`,
+    ),
+  }),
+);
+
+export type GroceryList = typeof groceryLists.$inferSelect;
+export type NewGroceryList = typeof groceryLists.$inferInsert;
+export type GroceryListItem = typeof groceryListItems.$inferSelect;
+export type NewGroceryListItem = typeof groceryListItems.$inferInsert;
+
 void sql;
