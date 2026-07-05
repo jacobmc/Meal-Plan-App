@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { InstallPrompt } from "@/components/install-prompt";
+import { OfflineIndicator } from "@/components/grocery/offline-indicator";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
@@ -14,6 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <Link href="/app" className="font-semibold">Meal Plan</Link>
         <nav className="flex items-center gap-4">
           <Link href="/app/calendar" className="text-sm">Calendar</Link>
+          <Link href="/app/grocery" className="text-sm">Groceries</Link>
           <Link href="/app/meals" className="text-sm">Recipes</Link>
           <Link href="/app/settings/profiles" className="text-sm">Profiles</Link>
           <UserButton />
@@ -21,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </header>
       <main className="px-4 py-6">{children}</main>
       <InstallPrompt />
+      <OfflineIndicator />
     </div>
   );
 }
